@@ -2,12 +2,12 @@
 {
     internal sealed class WinRmResult : IWinRmResult
     {
-        public bool IsSuccess => true;
+        public bool IsSuccess { get; set; }
 
-        public string Output => "This is the output";
+        public string Output { get; set; } = string.Empty;
 
-        public string Error => "This is the error";
+        public string Error { get; set; } = string.Empty;
 
-        public string ErrorMessage => "this is the error message";
+        public string ErrorMessage { get; set; } = string.Empty;
     }
 }

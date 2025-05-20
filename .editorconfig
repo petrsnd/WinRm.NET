@@ -11,6 +11,12 @@ dotnet_analyzer_diagnostic.severity = error
 # SA0001: XmlCommentAnalysisDisabled
 dotnet_diagnostic.SA0001.severity = none
 
+# SA1009: ClosingParenMustBeFollowedBySpace
+dotnet_diagnostic.SA1009.severity = none
+
+# SA1011: ClosingSquareBracketMustBeFollowedBySpace
+dotnet_diagnostic.SA1011.severity = none
+
 # SA1101: PrefixLocalCallsWithThis
 dotnet_diagnostic.SA1101.severity = none
 

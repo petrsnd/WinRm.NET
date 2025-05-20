@@ -6,18 +6,29 @@
     using System.Text;
     using System.Threading.Tasks;
 
+    /// <summary>
+    /// Represents the result of a WinRM command execution.
+    /// </summary>
     public interface IWinRmResult
     {
+        /// <summary>
+        /// Gets a value indicating whether the command was successful.
+        /// </summary>
         public bool IsSuccess { get; }
 
-        // Contents of stdout
-        // Might make more sense as a stream or something?
+        /// <summary>
+        /// Gets the standard output of the command
+        /// </summary>
         public string Output { get; }
 
-        // Contents of stderr? Does this apply in winrm?
+        /// <summary>
+        /// Gets the standard error of the command
+        /// </summary>
         public string Error { get; }
 
-        // Returns the error if IsSuccess is false
+        /// <summary>
+        /// Gets the error message if the command failed. (IsSuccess == false)
+        /// </summary>
         public string ErrorMessage { get; }
     }
 }

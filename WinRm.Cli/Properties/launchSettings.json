@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "WinRm.Cli": {
+      "commandName": "Project",
+      "commandLineArgs": "-s \"basic\" -c \"hostname\" -h \"10.3.63.179\" -u \"Luser\" -p \"root4EDMZ\""
+    }
+  }
+}

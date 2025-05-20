@@ -6,8 +6,8 @@
     using System.Text;
     using System.Threading.Tasks;
 
-    public interface IWinRmSession
+    public interface IWinRmSession : IDisposable
     {
-        IWinRmResult Run(string command);
+        Task<IWinRmResult> Run(string command, IEnumerable<string>? arguments = null);
     }
 }

@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35931.197
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinRm.NET", "WinRm.NET\WinRm.NET.csproj", "{CC6A2BEC-CCDC-6C46-8575-9BF6744A7388}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinRm.Cli", "..\WinRm.Cli\WinRm.Cli.csproj", "{6D72BCB6-6537-487E-9DAC-5176D9E29DD6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CC6A2BEC-CCDC-6C46-8575-9BF6744A7388}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CC6A2BEC-CCDC-6C46-8575-9BF6744A7388}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CC6A2BEC-CCDC-6C46-8575-9BF6744A7388}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CC6A2BEC-CCDC-6C46-8575-9BF6744A7388}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6D72BCB6-6537-487E-9DAC-5176D9E29DD6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6D72BCB6-6537-487E-9DAC-5176D9E29DD6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6D72BCB6-6537-487E-9DAC-5176D9E29DD6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6D72BCB6-6537-487E-9DAC-5176D9E29DD6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {29EFF4CF-17FC-4997-B653-DF12A9394ECC}
+	EndGlobalSection
+EndGlobal

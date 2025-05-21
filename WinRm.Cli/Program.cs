@@ -10,7 +10,11 @@
     {
         public static async Task<int> Main(string[] args)
         {
-            var parser = new Parser(cfg => cfg.CaseInsensitiveEnumValues = true);
+            var parser = new Parser(cfg =>
+            {
+                cfg.CaseInsensitiveEnumValues = true;
+                cfg.HelpWriter = Console.Out;
+            });
             var result = parser.ParseArguments<RunCommandOptions>(args);
             if (result is Parsed<RunCommandOptions> parsed)
             {
@@ -18,7 +22,7 @@
             }
             else if (result is NotParsed<RunCommandOptions> notParsed)
             {
-                return await HandleParseError(notParsed.Errors);
+                return await HandleParseError(result, notParsed.Errors);
             }
 
             throw new InvalidOperationException("You broke the command line parser.");
@@ -86,13 +90,8 @@
             return 0;
         }
 
-        private static Task<int> HandleParseError(IEnumerable<Error> errs)
+        private static Task<int> HandleParseError<T>(ParserResult<T> result, IEnumerable<Error> errs)
         {
-            foreach (var error in errs)
-            {
-                Console.WriteLine(error.ToString());
-            }
-
             return Task.FromResult(1);
         }
     }

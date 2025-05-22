@@ -30,6 +30,8 @@
         {
             using var client = this.WinRmProtocol.HttpClientFactory.CreateClient();
             client.BaseAddress = this.WinRmProtocol.Endpoint;
+            client.Timeout = TimeSpan.FromSeconds(120); // Hard-coded 2 minute timeout in case no one is home
+
             using var request = new HttpRequestMessage(HttpMethod.Post, this.WinRmProtocol.Endpoint);
             SetContent(request, soapDocument);
             SetHeaders(request.Headers, credentials);

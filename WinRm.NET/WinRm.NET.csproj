@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Kerberos.NET" Version="4.6.77" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.5" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.5" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.118">

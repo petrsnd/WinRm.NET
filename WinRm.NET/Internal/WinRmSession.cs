@@ -3,6 +3,9 @@
     using System.ComponentModel.Design;
     using Microsoft.Extensions.Logging;
 
+    /// <summary>
+    /// Provides logging helpers for WinRM session operations.
+    /// </summary>
     internal static partial class Log
     {
         private static readonly Action<ILogger, string, string, string, AuthType, Exception?> RunningCommandMessage =

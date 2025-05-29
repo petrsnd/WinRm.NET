@@ -15,20 +15,20 @@
         /// in production, you will be hacked.
         /// </summary>
         /// <returns>IWinRmSessionBuilder</returns>
-        IWinRmSessionBuilder WithBasic();
+        IWinRmBasicSessionBuilder WithBasic();
 
         /// <summary>
         /// Creates a new session with Kerberos authentication. This is
         /// the most secure way to use WinRm.
         /// </summary>
         /// <returns>IWInRmSessionBuilder</returns>
-        IWinRmSessionBuilder WithKerberos();
+        IWinRmKerberosSessionBuilder WithKerberos();
 
         /// <summary>
         /// Creates a new session with NTLM authentication.
         /// </summary>
         /// <returns>IWInRmSessionBuilder</returns>
-        IWinRmSessionBuilder WithNtlm();
+        IWinRmNtlmSessionBuilder WithNtlm();
     }
 
     public interface IWinRmConfig

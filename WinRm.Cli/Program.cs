@@ -33,7 +33,7 @@
             // If using DI, register this in the container and configure it
             // with logging and httpclientfactory
             var sessionBuilder = new WinRmSessionBuilder();
-            if (opts.Verbose)
+            if (opts.Verbose == true)
             {
                 // Set up logging
                 using var log = new LoggerConfiguration()
@@ -44,12 +44,24 @@
                 sessionBuilder.WithLogger(logBridge.CreateLogger("WinRm.NET"));
             }
 
+            string kdcHost = string.Empty;
+            string kdcAddress = string.Empty;
+            var kdcArray = opts.KdcInfo?.ToArray();
+            if (kdcArray != null && kdcArray.Length >= 2)
+            {
+                // If KDC info is provided, set it up
+                kdcHost = kdcArray[0];
+                kdcAddress = kdcArray[1];
+            }
+
             // Create the session
             using IWinRmSession session = opts.Authentication switch
             {
                 AuthType.Kerberos => sessionBuilder.WithKerberos()
                     .WithUser(opts.UserName)
                     .WithPassword(opts.Password!)
+                    .WithRealmName(opts.RealmName)
+                    .WithKdc(kdcHost, kdcAddress)
                     .Build(opts.HostName),
                 AuthType.Ntlm => sessionBuilder.WithNtlm()
                     .WithUser(opts.UserName)
@@ -84,7 +96,10 @@
             }
             else
             {
-                Console.WriteLine($"Error: {result.ErrorMessage}");
+                var color = Console.ForegroundColor;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"{result.ErrorMessage}");
+                Console.ForegroundColor = color;
             }
 
             return 0;

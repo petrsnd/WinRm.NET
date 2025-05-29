@@ -1,7 +1,8 @@
 {
   "profiles": {
     "WinRm.Cli": {
-      "commandName": "Project"
+      "commandName": "Project",
+      "commandLineArgs": "-s Ntlm -c hostname -h op-agent-2.dan.vmcloud -u Luser -p root4EDMZ -v"
     },
     "WSL": {
       "commandName": "WSL2",

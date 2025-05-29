@@ -1,40 +1,32 @@
 ﻿namespace WinRm.NET.Internal
 {
-    using Microsoft.Extensions.Logging;
     using WinRm.NET;
 
-    internal sealed class WinRmBuilder(AuthType authType, WinRmSessionBuilder parent)
-        : IWinRmSessionBuilder
+    // Common implementation for WinRm session builders
+    internal abstract class WinRmBuilder<TReturnType>(AuthType authType, WinRmSessionBuilder parent)
+        : IWinRmSessionBuilder<TReturnType>
+        where TReturnType : class, IWinRmSessionBuilder<TReturnType>
     {
-        private string? user;
-        private string? password;
+        protected string? User { get; private set; }
 
-        public IWinRmSession Build(string host)
+        protected string? Password { get; private set; }
+
+        protected AuthType AuthType => authType;
+
+        protected WinRmSessionBuilder Parent => parent;
+
+        public abstract IWinRmSession Build(string host);
+
+        public TReturnType WithPassword(string password)
         {
-            if (user == null)
-            {
-                throw new InvalidOperationException("User must be specified");
-            }
-
-            return new WinRmSession(
-                parent.HttpClientFactory ?? new DefaultHttpClientFactory(),
-                parent.Logger,
-                host,
-                authType,
-                this.user!,
-                this.password);
+            this.Password = password;
+            return (this as TReturnType)!;
         }
 
-        public IWinRmSessionBuilder WithPassword(string password)
+        public TReturnType WithUser(string user)
         {
-            this.password = password;
-            return this;
-        }
-
-        public IWinRmSessionBuilder WithUser(string user)
-        {
-            this.user = user;
-            return this;
+            this.User = user;
+            return (this as TReturnType)!;
         }
     }
 }

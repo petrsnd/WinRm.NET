@@ -2,8 +2,14 @@
 {
     using System.Xml;
 
-    internal interface ISecurityEnvelope
+    internal interface ISecurityEnvelope : IAsyncDisposable
     {
-        Task<XmlDocument> SendMessage(XmlDocument soapDocument, Credentials credentials);
+        AuthType AuthType { get; }
+
+        string User { get; }
+
+        Task Initialize(WinRmProtocol winRmProtocol);
+
+        Task<XmlDocument> SendMessage(XmlDocument soapDocument);
     }
 }

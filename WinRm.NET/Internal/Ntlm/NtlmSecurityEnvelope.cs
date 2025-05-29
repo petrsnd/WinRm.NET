@@ -41,7 +41,7 @@
             // Deal with the challenge response
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                Console.WriteLine("Received 401 Unauthorized, processing NTLM challenge.");
+                Logger.Dbg("Received 401 Unauthorized, processing NTLM challenge.");
                 if (!response.Headers.TryGetValues("WWW-Authenticate", out var values))
                 {
                     throw new InvalidOperationException("WWW-Authenticate header not found in response.");
@@ -49,7 +49,7 @@
 
                 var challengeMessage = values.First().Replace("Negotiate ", string.Empty).Trim();
                 var challengeBytes = Convert.FromBase64String(challengeMessage);
-                var challenge = NtlmParser.ParseChallenge(bytes);
+                var challenge = NtlmParser.ParseChallenge(challengeBytes);
 
                 Logger.Dbg($"Challenge: {challenge.ChallengeBytes.ToHexString()}");
             }

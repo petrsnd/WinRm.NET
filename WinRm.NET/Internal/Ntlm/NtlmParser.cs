@@ -66,6 +66,8 @@
             {
                 switch (pair.Type)
                 {
+                    case 0x0000: // EOF
+                        return;
                     case 0x0001: // MsvAvNbComputerName
                         challenge.NetBiosComputerName = Encoding.Unicode.GetString(pair.Value);
                         break;

@@ -54,3 +54,6 @@ TestResult.xml
 nunit-*.xml
 /.vs/
 /WinRm.NET/.vs/
+
+.vscode/
+/WinRm.Cli/Properties/launchSettings.json

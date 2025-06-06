@@ -1,106 +1,6 @@
 ﻿namespace WinRm.NET.Internal
 {
-    using System.ComponentModel.Design;
     using Microsoft.Extensions.Logging;
-
-    internal static partial class Log
-    {
-        private static readonly Action<ILogger, string, string, string, AuthType, Exception?> RunningCommandMessage =
-            LoggerMessage.Define<string, string, string, AuthType>(
-                LogLevel.Debug,
-                new EventId(1, nameof(RunningCommand)),
-                "Running: '{Command}' on '{Host}' as '{User}' using '{AuthType}' security");
-
-        private static readonly Action<ILogger, string, Exception?> OpenedShellMessage =
-            LoggerMessage.Define<string>(
-                LogLevel.Debug,
-                new EventId(2, nameof(OpenedShell)),
-                "Opened shell {ShellId}");
-
-        private static readonly Action<ILogger, string, string, Exception?> StartedCommandMessage =
-            LoggerMessage.Define<string, string>(
-                LogLevel.Debug,
-                new EventId(3, nameof(OpenedShell)),
-                "Started command {ShellId}-{CommandId}");
-
-        private static readonly Action<ILogger, string, string, int, Exception?> GotCommandResultMessage =
-            LoggerMessage.Define<string, string, int>(
-                LogLevel.Debug,
-                new EventId(4, nameof(OpenedShell)),
-                "Got command result {ShellId}-{CommandId}: {StatusCode}");
-
-        private static readonly Action<ILogger, string, string, Exception?> TerminatedCommandMessage =
-            LoggerMessage.Define<string, string>(
-                LogLevel.Debug,
-                new EventId(5, nameof(OpenedShell)),
-                "Terminated command {ShellId}-{CommandId}");
-
-        private static readonly Action<ILogger, string, Exception?> ClosedShellMessage =
-            LoggerMessage.Define<string>(
-                LogLevel.Debug,
-                new EventId(6, nameof(OpenedShell)),
-                "Closed shell {ShellId}");
-
-        public static void RunningCommand(ILogger? logger, AuthType authType, string command, string host, string? user)
-        {
-            if (logger == null)
-            {
-                return;
-            }
-
-            RunningCommandMessage(logger, command, host, user ?? string.Empty, authType, null);
-        }
-
-        public static void OpenedShell(ILogger? logger, string shellId)
-        {
-            if (logger == null)
-            {
-                return;
-            }
-
-            OpenedShellMessage(logger, shellId, null);
-        }
-
-        public static void StartedCommand(ILogger? logger, string shellId, string commandId)
-        {
-            if (logger == null)
-            {
-                return;
-            }
-
-            StartedCommandMessage(logger, shellId, commandId, null);
-        }
-
-        public static void TerminatedCommand(ILogger? logger, string shellId, string commandId)
-        {
-            if (logger == null)
-            {
-                return;
-            }
-
-            TerminatedCommandMessage(logger, shellId, commandId, null);
-        }
-
-        public static void ClosedShell(ILogger? logger, string shellId)
-        {
-            if (logger == null)
-            {
-                return;
-            }
-
-            ClosedShellMessage(logger, shellId, null);
-        }
-
-        public static void GotCommandResult(ILogger? logger, string shellId, string commandId, int statusCode)
-        {
-            if (logger == null)
-            {
-                return;
-            }
-
-            GotCommandResultMessage(logger, shellId, commandId, statusCode, null);
-        }
-    }
 
     internal sealed class WinRmSession
             : IWinRmSession
@@ -110,16 +10,12 @@
         public WinRmSession(IHttpClientFactory clientFactory,
         ILogger? logger,
         string host,
-        AuthType authType,
-        string user,
-        string? password)
+        ISecurityEnvelope securityEnvelope)
         {
             HttpClientFactory = clientFactory;
             Logger = logger;
             Host = host;
-            AuthType = authType;
-            User = user;
-            Password = password;
+            SecurityEnvelope = securityEnvelope;
         }
 
         internal IHttpClientFactory HttpClientFactory { get; private set; }
@@ -128,18 +24,15 @@
 
         internal string Host { get; private set; }
 
-        internal AuthType AuthType { get; private set; }
-
-        internal string User { get; private set; }
-
-        internal string? Password { get; private set; }
+        internal ISecurityEnvelope SecurityEnvelope { get; private set; }
 
         public async Task<IWinRmResult> Run(string command, IEnumerable<string>? arguments = null)
         {
-            Log.RunningCommand(Logger, AuthType, command, Host, User);
+            Log.RunningCommand(Logger, SecurityEnvelope.AuthType, command, Host, SecurityEnvelope.User);
             try
             {
-                var protocol = new WinRmProtocol(this);
+                var protocol = new WinRmProtocol(this, SecurityEnvelope);
+                await SecurityEnvelope.Initialize(protocol);
 
                 // Step 1: Open a shell on the remote host
                 var shellId = await protocol.OpenShell();

@@ -1,21 +1,33 @@
 ﻿namespace WinRm.NET.Internal
 {
     using System;
-    using System.Collections.Generic;
-    using System.Linq;
+    using System.Diagnostics.CodeAnalysis;
     using System.Net.Http.Headers;
-    using System.Text;
     using System.Threading.Tasks;
     using System.Xml;
+    using Microsoft.Extensions.Logging;
 
     internal abstract class SecurityEnvelope : ISecurityEnvelope
     {
-        public SecurityEnvelope(WinRmProtocol winRmProtocol)
+        public SecurityEnvelope(ILogger? logger)
         {
-            this.WinRmProtocol = winRmProtocol;
+            this.Logger = logger;
         }
 
-        protected WinRmProtocol WinRmProtocol { get; }
+        public abstract string User { get; }
+
+        public abstract AuthType AuthType { get; }
+
+        protected WinRmProtocol? WinRmProtocol { get; private set; }
+
+        protected ILogger? Logger { get; }
+
+        [MemberNotNull("WinRmProtocol")]
+        public virtual Task Initialize(WinRmProtocol winRmProtocol)
+        {
+            this.WinRmProtocol = winRmProtocol;
+            return Task.CompletedTask;
+        }
 
         /// <summary>
         /// Send the SOAP message and handle errors. If successful,
@@ -24,16 +36,23 @@
         /// payloads.
         /// </summary>
         /// <param name="soapDocument">The SOAP request document</param>
-        /// <param name="credentials">User's credentials for the request</param>
         /// <returns>XmlDocument response</returns>
-        public async Task<XmlDocument> SendMessage(XmlDocument soapDocument, Credentials credentials)
+        public async Task<XmlDocument> SendMessage(XmlDocument soapDocument)
         {
+            if (this.WinRmProtocol == null)
+            {
+                throw new InvalidOperationException("Security envelope is not initialized. Call Initialize() first.");
+            }
+
             using var client = this.WinRmProtocol.HttpClientFactory.CreateClient();
             client.BaseAddress = this.WinRmProtocol.Endpoint;
+            client.Timeout = TimeSpan.FromSeconds(120); // Hard-coded 2 minute timeout in case no one is home
+
             using var request = new HttpRequestMessage(HttpMethod.Post, this.WinRmProtocol.Endpoint);
+            request.Headers.Add("User-Agent", "WinRM.NET");
+            request.Headers.Add("Connection", "Keep-Alive");
+            SetHeaders(request.Headers);
             SetContent(request, soapDocument);
-            SetHeaders(request.Headers, credentials);
-            request.Headers.Add("SOAPAction", string.Empty);
             using var response = await client.SendAsync(request);
             if (response.IsSuccessStatusCode)
             {
@@ -83,16 +102,45 @@
             }
             else
             {
-                var responseData = await response.Content.ReadAsStringAsync();
+                var streamContent = new StreamContent(response.Content.ReadAsStream());
+
+                // This will either throw or do nothing
+                await HandleErrorResponse(response, streamContent);
+
+                var responseData = await streamContent.ReadAsStringAsync();
+
                 // TODO: Define specific exceptions that we will throw from WinRm.NET
                 throw new HttpRequestException($"Error: {response.StatusCode}, {response.ReasonPhrase} SOAP Response: {responseData}");
             }
         }
 
-        protected abstract void SetHeaders(HttpRequestHeaders headers, Credentials credentials);
+        public async ValueTask DisposeAsync()
+        {
+            // Perform async cleanup.
+            await DisposeAsyncCore();
+
+            // Dispose of unmanaged resources. Do we need this?
+            // Dispose(false);
+
+            // Suppress finalization.
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual Task HandleErrorResponse(HttpResponseMessage response, StreamContent content)
+        {
+            return Task.CompletedTask;
+        }
+
+        protected abstract void SetHeaders(HttpRequestHeaders headers);
 
         protected abstract void SetContent(HttpRequestMessage request, XmlDocument soapDocument);
 
         protected abstract Task<string> DecodeResponse(HttpResponseMessage response);
+
+        protected virtual ValueTask DisposeAsyncCore()
+        {
+            // For whatever cleanup is needed, override this method in derived classes.
+            return ValueTask.CompletedTask;
+        }
     }
 }

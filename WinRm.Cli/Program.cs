@@ -15,17 +15,19 @@
                 cfg.CaseInsensitiveEnumValues = true;
                 cfg.HelpWriter = Console.Out;
             });
-            var result = parser.ParseArguments<RunCommandOptions>(args);
-            if (result is Parsed<RunCommandOptions> parsed)
-            {
-                return await RunCommand(parsed.Value);
-            }
-            else if (result is NotParsed<RunCommandOptions> notParsed)
-            {
-                return await HandleParseError(result, notParsed.Errors);
-            }
 
-            throw new InvalidOperationException("You broke the command line parser.");
+            return await parser.ParseArguments<RunCommandOptions, DebugCommandOptions>(args)
+                .MapResult(
+                (RunCommandOptions opts) => RunCommand(opts),
+                (DebugCommandOptions opts) => DebugCommand(opts),
+                errs => HandleParseError(errs));
+        }
+
+        private static async Task<int> DebugCommand(DebugCommandOptions opts)
+        {
+            var payload = Convert.FromBase64String(opts.Message);
+            await WinRm.NET.Internal.Ntlm.SessionDebug.Debug(opts.Authenticate, opts.Password, payload);
+            return 0;
         }
 
         private static async Task<int> RunCommand(RunCommandOptions opts)
@@ -33,7 +35,7 @@
             // If using DI, register this in the container and configure it
             // with logging and httpclientfactory
             var sessionBuilder = new WinRmSessionBuilder();
-            if (opts.Verbose)
+            if (opts.Verbose == true)
             {
                 // Set up logging
                 using var log = new LoggerConfiguration()
@@ -44,12 +46,24 @@
                 sessionBuilder.WithLogger(logBridge.CreateLogger("WinRm.NET"));
             }
 
+            string kdcHost = string.Empty;
+            string kdcAddress = string.Empty;
+            var kdcArray = opts.KdcInfo?.ToArray();
+            if (kdcArray != null && kdcArray.Length >= 2)
+            {
+                // If KDC info is provided, set it up
+                kdcHost = kdcArray[0];
+                kdcAddress = kdcArray[1];
+            }
+
             // Create the session
             using IWinRmSession session = opts.Authentication switch
             {
                 AuthType.Kerberos => sessionBuilder.WithKerberos()
                     .WithUser(opts.UserName)
                     .WithPassword(opts.Password!)
+                    .WithRealmName(opts.RealmName)
+                    .WithKdc(kdcHost, kdcAddress)
                     .Build(opts.HostName),
                 AuthType.Ntlm => sessionBuilder.WithNtlm()
                     .WithUser(opts.UserName)
@@ -84,13 +98,16 @@
             }
             else
             {
-                Console.WriteLine($"Error: {result.ErrorMessage}");
+                var color = Console.ForegroundColor;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"{result.ErrorMessage}");
+                Console.ForegroundColor = color;
             }
 
             return 0;
         }
 
-        private static Task<int> HandleParseError<T>(ParserResult<T> result, IEnumerable<Error> errs)
+        private static Task<int> HandleParseError(IEnumerable<Error> errs)
         {
             return Task.FromResult(1);
         }

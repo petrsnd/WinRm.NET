@@ -2,34 +2,20 @@
 {
     using System;
     using System.Collections.Generic;
-    using System.ComponentModel;
-    using System.ComponentModel.Design;
-    using System.Linq;
-    using System.Net;
-    using System.Reflection.PortableExecutable;
-    using System.Security.Cryptography;
     using System.Text;
     using System.Threading.Tasks;
     using System.Xml;
-    using System.Xml.Linq;
-    using Microsoft.Extensions.Options;
 
     internal sealed class WinRmProtocol
     {
         private WinRmSession parent;
         private ISecurityEnvelope securityEnvelope;
 
-        public WinRmProtocol(WinRmSession parent)
+        public WinRmProtocol(WinRmSession parent, ISecurityEnvelope securityEnvelope)
         {
             this.parent = parent;
+            this.securityEnvelope = securityEnvelope;
             Endpoint = new Uri($"http://{parent.Host}:5985/wsman");
-            securityEnvelope = parent.AuthType switch
-            {
-                AuthType.Basic => new BasicSecurityEnvelope(this),
-                AuthType.Kerberos => new KerberosSecurityEnvelope(this),
-                AuthType.Ntlm => new NtlmSecurityEnvelope(this),
-                _ => throw new NotImplementedException($"Auth type {parent.AuthType} is not implemented yet")
-            };
         }
 
         public Uri Endpoint { get; }
@@ -44,7 +30,7 @@
             xmlDocument.LoadXml(SoapHelper.CreateOpenShellSoapRequest(environmentVariables));
 
             // Security envelope will wrap and send the request as well as handle errors
-            var response = await securityEnvelope.SendMessage(xmlDocument, new Credentials(parent.User, parent.Password));
+            var response = await securityEnvelope.SendMessage(xmlDocument);
 
             // Get the shell Id out of the response and return it. The ID is a Guid, but WinRm actually
             // cares about case sensitivity, so we need to make sure we preserve it as-is in a string.
@@ -60,7 +46,7 @@
             xmlDocument.LoadXml(SoapHelper.CreateExecuteCommandSoapRequest(shellId, command, arguments));
 
             // Security envelope will wrap and send the request as well as handle errors
-            var response = await securityEnvelope.SendMessage(xmlDocument, new Credentials(parent.User, parent.Password));
+            var response = await securityEnvelope.SendMessage(xmlDocument);
 
             // Get the command ID and return it
             var xmlns = SoapHelper.Xmlns[SoapHelper.Rsp];
@@ -75,7 +61,7 @@
             xmlDocument.LoadXml(SoapHelper.CreateReceiveOutputSoapRequest(shellId, commandId));
 
             // Security envelope will wrap and send the request as well as handle errors
-            var response = await securityEnvelope.SendMessage(xmlDocument, new Credentials(parent.User, parent.Password));
+            var response = await securityEnvelope.SendMessage(xmlDocument);
 
             var xmlns = new XmlNamespaceManager(response.NameTable);
             SoapHelper.PopulateNamespaces(xmlns);
@@ -112,7 +98,7 @@
             xmlDocument.LoadXml(SoapHelper.CreateTerminateOperationSoapRequest(shellId, commandId));
 
             // This doesn't return anything useful, so we don't need to parse the response
-            await securityEnvelope.SendMessage(xmlDocument, new Credentials(parent.User, parent.Password));
+            await securityEnvelope.SendMessage(xmlDocument);
         }
 
         public async Task CloseShell(string shellId)
@@ -122,7 +108,7 @@
             xmlDocument.LoadXml(SoapHelper.CreateDeleteShellSoapRequest(shellId));
 
             // This doesn't return anything useful, so we don't need to parse the response
-            await securityEnvelope.SendMessage(xmlDocument, new Credentials(parent.User, parent.Password));
+            await securityEnvelope.SendMessage(xmlDocument);
         }
 
         // Output streams are delivered as a sequence of base64 encoded XML nodes

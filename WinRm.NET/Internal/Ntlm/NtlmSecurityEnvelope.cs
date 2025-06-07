@@ -94,7 +94,7 @@
             }
 
             var responseContent = response.Content;
-            if (!responseContent.IsMimeMultipartContent())
+            if (!responseContent.Headers.ContentType?.MediaType?.StartsWith("multipart") ?? false)
             {
                 throw new InvalidOperationException($"Expected multipart response data. Got '{response.Content.Headers.ContentType}'");
             }

@@ -1,3 +1,5 @@
+[![build test and publish](https://github.com/CodyBatt/WinRm.NET/actions/workflows/build-publish.yml/badge.svg)](https://github.com/CodyBatt/WinRm.NET/actions/workflows/build-publish.yml)
+
 # WinRm.NET
 .NET implementation of WinRM client
 

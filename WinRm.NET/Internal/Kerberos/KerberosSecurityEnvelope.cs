@@ -50,9 +50,6 @@
                 },
             };
 
-            // need to figure out how to ask Kerberos for mutual auth and delegation in the AP_REQ
-            // before we build the GSS-API token in the authorization header.
-
             var krb5Client = new KerberosClient(krb5Conf);
             krb5Client.PinKdc(realmName, kdcAddress);
 
@@ -68,11 +65,16 @@
 
             var rst = new RequestServiceTicket
             {
-                ServicePrincipalName = targetSpn,
                 ApOptions = apOptions,
+                ServicePrincipalName = targetSpn,
+                Realm = realmName,
+                CacheTicket = true,
             };
 
+            // This is the Krb5 context that will be used for this session
             SessionContext = await krb5Client.GetServiceTicket(rst);
+
+            // Encode the AP_REQ in GSS-API for transmission via HTTP
             var requestHeaderBuffer = GssApiToken.Encode(new Oid(MechType.KerberosGssApi), SessionContext.ApReq);
             var gssKrb5ApReq = Convert.ToBase64String(requestHeaderBuffer.ToArray());
 
@@ -95,8 +97,10 @@
                 throw new InvalidOperationException("[PROTOCOL_ERROR] Got WWW-Authenticate, but it did not contain a Kerberos response.");
             }
 
+            // Decode from GSS-API to get to the AP_REP
             var responseHeaderBuffer = Convert.FromBase64String(gssKrb5ApRep);
-            var encKey = SessionContext.AuthenticateServiceResponse(responseHeaderBuffer);
+            var gssToken = GssApiToken.Decode(responseHeaderBuffer);
+            var encKey = SessionContext.AuthenticateServiceResponse(gssToken.Token);
 
             int breakhere = 100;
         }

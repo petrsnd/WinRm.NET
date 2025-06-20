@@ -1,11 +1,13 @@
 ﻿namespace WinRm.NET.Internal.Kerberos
 {
+    using System.Globalization;
     using System.Net.Http;
     using System.Net.Http.Headers;
     using System.Security.Cryptography;
     using System.Text;
     using System.Threading.Tasks;
     using System.Xml;
+    using global::Kerberos.NET;
     using global::Kerberos.NET.Client;
     using global::Kerberos.NET.Configuration;
     using global::Kerberos.NET.Credentials;
@@ -15,27 +17,24 @@
     internal sealed class KerberosSecurityEnvelope : SecurityEnvelope
     {
         private readonly Credentials credentials;
-        private readonly HostInfo kdcInfo;
         private readonly string realmName;
+        private readonly string kdcAddress;
+        private string? targetSpn;
 
-        private bool _contextEstablished;
-
-        public KerberosSecurityEnvelope(ILogger? logger, Credentials credentials, string realm, HostInfo kdcInfo)
+        public KerberosSecurityEnvelope(ILogger? logger, Credentials credentials, string realm, string kdc, string? spn)
             : base(logger)
         {
             this.credentials = credentials;
-            realmName = realm;
-            this.kdcInfo = kdcInfo;
+            realmName = realm.ToUpper(CultureInfo.InvariantCulture);
+            kdcAddress = kdc;
+            targetSpn = spn;
         }
 
         public override string User => this.credentials.User;
 
         public override AuthType AuthType => AuthType.Kerberos;
 
-        private KrbApReq? ServiceTicket { get; set; }
-
-        // This is probably wrong...
-        private string KrbToken { get; set; } = string.Empty;
+        private ApplicationSessionContext? SessionContext { get; set; }
 
         public async override Task Initialize(WinRmProtocol winRmProtocol)
         {
@@ -54,17 +53,52 @@
             // need to figure out how to ask Kerberos for mutual auth and delegation in the AP_REQ
             // before we build the GSS-API token in the authorization header.
 
-            var client = new KerberosClient(krb5Conf);
-            client.PinKdc(kdcInfo.Name, kdcInfo.Address);
+            var krb5Client = new KerberosClient(krb5Conf);
+            krb5Client.PinKdc(realmName, kdcAddress);
 
             var creds = new KerberosPasswordCredential(credentials.User, credentials.Password);
-            client.Authenticate(creds).Wait();
+            await krb5Client.Authenticate(creds);
 
             var apOptions = ApOptions.ChannelBindingSupported | ApOptions.MutualRequired;
             var targetHost = winRmProtocol.Endpoint.Host.ToLowerInvariant();
-            ServiceTicket = client.GetServiceTicket($"http/{targetHost}", apOptions).GetAwaiter().GetResult();
-            var buffer = GssApiToken.Encode(new Oid(MechType.KerberosGssApi), ServiceTicket);
-            KrbToken = Convert.ToBase64String(buffer.ToArray());
+            if (targetSpn == null)
+            {
+                targetSpn = $"http/{targetHost}";
+            }
+
+            var rst = new RequestServiceTicket
+            {
+                ServicePrincipalName = targetSpn,
+                ApOptions = apOptions,
+            };
+
+            SessionContext = await krb5Client.GetServiceTicket(rst);
+            var requestHeaderBuffer = GssApiToken.Encode(new Oid(MechType.KerberosGssApi), SessionContext.ApReq);
+            var gssKrb5ApReq = Convert.ToBase64String(requestHeaderBuffer.ToArray());
+
+            using var httpClient = winRmProtocol.HttpClientFactory.CreateClient();
+            httpClient.BaseAddress = WinRmProtocol.Endpoint;
+            httpClient.Timeout = TimeSpan.FromSeconds(120);
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, winRmProtocol.Endpoint);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Kerberos", gssKrb5ApReq);
+            using var response = await httpClient.SendAsync(request);
+
+            if (!response.Headers.TryGetValues("WWW-Authenticate", out var values))
+            {
+                throw new InvalidOperationException("[PROTOCOL_ERROR] WWW-Authenticate header not found in response.");
+            }
+
+            var gssKrb5ApRep = values.FirstOrDefault()?.Replace("Kerberos", string.Empty).Trim();
+            if (string.IsNullOrEmpty(gssKrb5ApRep))
+            {
+                throw new InvalidOperationException("[PROTOCOL_ERROR] Got WWW-Authenticate, but it did not contain a Kerberos response.");
+            }
+
+            var responseHeaderBuffer = Convert.FromBase64String(gssKrb5ApRep);
+            var encKey = SessionContext.AuthenticateServiceResponse(responseHeaderBuffer);
+
+            int breakhere = 100;
         }
 
         protected override Task<string> DecodeResponse(HttpResponseMessage response)
@@ -74,24 +108,12 @@
 
         protected override void SetContent(HttpRequestMessage request, XmlDocument soapDocument)
         {
-            if (ServiceTicket == null)
-            {
-                throw new InvalidOperationException("SetHeaders must be called before SetContent");
-            }
-
-            if (!_contextEstablished)
-            {
-                request.Content = new StringContent(soapDocument.OuterXml, Encoding.UTF8, "application/soap+xml");
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
+            throw new NotImplementedException();
         }
 
         protected override void SetHeaders(HttpRequestHeaders headers)
         {
-            headers.Authorization = new AuthenticationHeaderValue("Kerberos", KrbToken);
+            throw new NotImplementedException();
         }
     }
 }

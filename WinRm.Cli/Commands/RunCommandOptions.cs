@@ -21,8 +21,11 @@
         [Option('u', "user", Required = true, HelpText = "Specify the user principal that the command will run as.")]
         required public string UserName { get; set; }
 
-        [Option('r', "realm", Required = false, HelpText = "Specify the kerberos realm.")]
+        [Option('r', "realm", Required = false, HelpText = "Specify the Kerberos realm.")]
         required public string RealmName { get; set; }
+
+        [Option('S', "spn", Required = false, HelpText = "Specify the Kerberos SPN of the host target.")]
+        public string? Spn { get; set; }
 
         // Eventually get this from stdin, this is required for both ntlm, TBD whether we will always require for kerberos
         [Option('p', "password", Required = false, HelpText = "Specifiy the user's password")]
@@ -31,7 +34,7 @@
         [Option('v', "verbose", Required = false, Default = false, HelpText = "Display verbose logging")]
         public bool Verbose { get; set; }
 
-        [Option('k', "kdc", Required = false, HelpText = "Sepcify KDC info as: host,ip")]
-        public IEnumerable<string>? KdcInfo { get; set; }
+        [Option('k', "kdc", Required = false, HelpText = "Specify KDC address")]
+        public string? Kdc { get; set; }
     }
 }

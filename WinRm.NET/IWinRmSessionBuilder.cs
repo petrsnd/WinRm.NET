@@ -28,6 +28,8 @@
     {
         IWinRmKerberosSessionBuilder WithRealmName(string realm);
 
-        IWinRmKerberosSessionBuilder WithKdc(string host, string address);
+        IWinRmKerberosSessionBuilder WithKdc(string address);
+
+        IWinRmKerberosSessionBuilder WithSpn(string? spn);
     }
 }

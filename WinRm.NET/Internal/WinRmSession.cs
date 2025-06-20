@@ -24,6 +24,8 @@
 
         internal string Host { get; private set; }
 
+        internal string? Ip { get; private set; }
+
         internal ISecurityEnvelope SecurityEnvelope { get; private set; }
 
         public async Task<IWinRmResult> Run(string command, IEnumerable<string>? arguments = null)

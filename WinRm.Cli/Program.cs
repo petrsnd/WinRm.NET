@@ -43,7 +43,7 @@
                 .MinimumLevel.Debug()
                 .CreateLogger();
                 var logBridge = new SerilogLoggerFactory(log);
-                sessionBuilder.WithLogger(logBridge.CreateLogger("WinRm.NET"));
+                sessionBuilder.WithLogger(logBridge);
             }
 
             // Create the session

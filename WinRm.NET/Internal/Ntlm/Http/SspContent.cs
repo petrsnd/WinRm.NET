@@ -18,19 +18,18 @@
         private ReadOnlyMemory<byte> payload;
         private string text;
 
-        public SspContent(ReadOnlyMemory<byte> payload)
+        public SspContent(ReadOnlyMemory<byte> payload, int originalContentLength, string contentType)
         {
             this.payload = payload;
             var sb = new StringBuilder();
             sb.AppendLine("--Encrypted Boundary");
-            sb.AppendLine("Content-Type: application/HTTP-SPNEGO-session-encrypted");
-            // TODO: Fix this. The length should only count the encrypted data, not the encryption header
-            sb.AppendLine($"OriginalContent: type=application/soap+xml;charset=UTF-8;Length={payload.Length - 20}");
+            sb.AppendLine($"Content-Type: {contentType}");
+            sb.AppendLine($"OriginalContent: type=application/soap+xml;charset=UTF-8;Length={originalContentLength}");
             sb.AppendLine("--Encrypted Boundary");
             sb.AppendLine("Content-Type: application/octet-stream");
             text = sb.ToString();
 
-            Headers.ContentType = new SspContentHeader();
+            Headers.ContentType = new SspContentHeader(contentType);
         }
 
         protected async override Task SerializeToStreamAsync(Stream stream, TransportContext? context)

@@ -146,7 +146,7 @@
             ciphertext.CopyTo(payload.Slice(dataOffset));
             this.sequenceNumber++;
 
-            request.Content = new SspContent(payload);
+            request.Content = new SspContent(payload, plaintext.Length, "application/HTTP-SPNEGO-session-encrypted");
         }
 
         protected override void SetHeaders(HttpRequestHeaders headers)

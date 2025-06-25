@@ -39,6 +39,11 @@
                 kdc ?? throw new InvalidOperationException("KDC address must be specified when AuthType is Kerberos."),
                 spn);
 
+            if (this.Parent.LoggerFactory != null)
+            {
+                securityEnvelope.SetLoggerFactory(this.Parent.LoggerFactory);
+            }
+
             return new WinRmSession(
                 Parent.HttpClientFactory ?? new DefaultHttpClientFactory(),
                 Parent.Logger,

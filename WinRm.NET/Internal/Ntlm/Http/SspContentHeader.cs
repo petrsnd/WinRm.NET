@@ -4,14 +4,17 @@
 
     internal class SspContentHeader : MediaTypeHeaderValue
     {
-        public SspContentHeader()
+        private readonly string contentType;
+
+        public SspContentHeader(string contentType)
             : base("multipart/encrypted")
         {
+            this.contentType = contentType;
         }
 
         public override string ToString()
         {
-            return "multipart/encrypted;protocol=\"application/HTTP-SPNEGO-session-encrypted\";boundary=\"Encrypted Boundary\"";
+            return $"multipart/encrypted;protocol=\"{this.contentType}\";boundary=\"Encrypted Boundary\"";
         }
     }
 }

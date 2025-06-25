@@ -1,5 +1,6 @@
 ﻿namespace WinRm.NET.Internal.Kerberos
 {
+    using System.Buffers.Binary;
     using System.Globalization;
     using System.Net.Http;
     using System.Net.Http.Headers;
@@ -11,8 +12,10 @@
     using global::Kerberos.NET.Client;
     using global::Kerberos.NET.Configuration;
     using global::Kerberos.NET.Credentials;
+    using global::Kerberos.NET.Crypto;
     using global::Kerberos.NET.Entities;
     using Microsoft.Extensions.Logging;
+    using WinRm.NET.Internal.Ntlm.Http;
 
     internal sealed class KerberosSecurityEnvelope : SecurityEnvelope
     {
@@ -20,6 +23,7 @@
         private readonly string realmName;
         private readonly string kdcAddress;
         private string? targetSpn;
+        private ILoggerFactory? loggerFactory;
 
         public KerberosSecurityEnvelope(ILogger? logger, Credentials credentials, string realm, string kdc, string? spn)
             : base(logger)
@@ -36,6 +40,17 @@
 
         private ApplicationSessionContext? SessionContext { get; set; }
 
+        private KerberosCryptoTransformer? Encryptor { get; set; }
+
+        private KrbEncryptionKey? Key { get; set; }
+
+        private int SequenceNumber { get; set; }
+
+        public void SetLoggerFactory(ILoggerFactory loggerFactory)
+        {
+            this.loggerFactory = loggerFactory;
+        }
+
         public async override Task Initialize(WinRmProtocol winRmProtocol)
         {
             await base.Initialize(winRmProtocol);
@@ -50,7 +65,7 @@
                 },
             };
 
-            var krb5Client = new KerberosClient(krb5Conf);
+            var krb5Client = new KerberosClient(krb5Conf, loggerFactory);
             krb5Client.PinKdc(realmName, kdcAddress);
 
             var creds = new KerberosPasswordCredential(credentials.User, credentials.Password);
@@ -100,9 +115,9 @@
             // Decode from GSS-API to get to the AP_REP
             var responseHeaderBuffer = Convert.FromBase64String(gssKrb5ApRep);
             var gssToken = GssApiToken.Decode(responseHeaderBuffer);
-            var encKey = SessionContext.AuthenticateServiceResponse(gssToken.Token);
 
-            int breakhere = 100;
+            Key = SessionContext.AuthenticateServiceResponse(gssToken.Token);
+            Encryptor = CryptoService.CreateTransform(SessionContext.ApReq.Authenticator.EType);
         }
 
         protected override Task<string> DecodeResponse(HttpResponseMessage response)
@@ -112,12 +127,41 @@
 
         protected override void SetContent(HttpRequestMessage request, XmlDocument soapDocument)
         {
-            throw new NotImplementedException();
+            if (Encryptor == null)
+            {
+                throw new InvalidOperationException("Encryptor is not initialized. Ensure Initialize has been called successfully.");
+            }
+
+            if (Key == null)
+            {
+                throw new InvalidOperationException("Encryption Key is not initialized. Ensure Initialize has been called successfully.");
+            }
+
+            if (SessionContext?.SequenceNumber == null)
+            {
+                throw new InvalidOperationException("Sequence number is not set. Ensure Initialize has been called successfully.");
+            }
+
+            var plaintext = Encoding.UTF8.GetBytes(soapDocument.OuterXml);
+            var wrap = new GssWrap(Encryptor, Key.AsKey(), plaintext, (ulong)SessionContext.SequenceNumber.Value);
+            var token = wrap.GetBytes();
+
+            // Build payload: HEADER_LEN | SIGNATURE | SEALED_MESSAGE
+            // SIGNATURE is WrapToken + BYTES : ID | FLAGS | FILLER | EC | RCC | SEQ_NUM | "SIGNATURE"
+            int headerLength = token.Signature.Length;
+            int dataOffset = headerLength + 4;
+            Memory<byte> payload = new byte[plaintext.Length + dataOffset];
+            BinaryPrimitives.WriteInt32LittleEndian(payload.Span, headerLength);
+
+            token.Signature.CopyTo(payload.Slice(4));
+            token.SealedMessage.CopyTo(payload.Slice(dataOffset));
+
+            request.Content = new SspContent(payload, plaintext.Length, "application/HTTP-Kerberos-session-encrypted");
         }
 
         protected override void SetHeaders(HttpRequestHeaders headers)
         {
-            throw new NotImplementedException();
+            // Nothing to do here
         }
     }
 }
